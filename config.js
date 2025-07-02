@@ -12,3 +12,7 @@ export const firebaseConfig = {
 export const GOOGLE_API_KEY = "AIzaSyBrvZrxo1OVn6KwmPnFdqVOP2w4DI02F_M";
 export const GOOGLE_CLIENT_ID = "510641372260-4i572md0fdqsum3dh5ll3d5lda6nkbdd.apps.googleusercontent.com";
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+// -- رابط الواجهة الخلفية (Cloudflare Worker) --
+// هذا الرابط سنستخدمه لربط التطبيق بالوظائف الخلفية.
+export const WORKER_URL = 'https://calgym-api-local.mklekm12.workers.dev';
