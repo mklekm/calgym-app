@@ -67,13 +67,28 @@ function setupEventListeners() {
     });
 
     document.getElementById('register-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
-        auth.handleRegister(email, password).catch(err => {
-            document.getElementById('register-msg').textContent = "Cet e-mail est peut-être déjà utilisé.";
+    e.preventDefault();
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+    const registerMsg = document.getElementById('register-msg');
+
+    registerMsg.textContent = "جاري المعالجة...";
+    registerMsg.style.color = "blue";
+
+    // الخطوة 1: تسجيل الإيميل كـ Lead
+    auth.sendToWorker({ email: email })
+        .then(() => {
+            // الخطوة 2: تخزين بيانات التسجيل مؤقتاً
+            state.tempRegData = { email, password };
+            // الخطوة 3: الانتقال مباشرة إلى صفحة التفعيل
+            ui.showScreen('activation');
+        })
+        .catch(err => {
+            registerMsg.textContent = "حدث خطأ. حاول مرة أخرى.";
+            registerMsg.style.color = "red";
         });
-    });
+});
+
 
     document.getElementById('reset-password-form')?.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -92,23 +107,47 @@ function setupEventListeners() {
     document.getElementById('back-to-login-link')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').style.display = 'block'; document.getElementById('register-view').style.display = 'none'; document.getElementById('reset-password-view').style.display = 'none'; });
 
     // --- Activation Form ---
-    document.getElementById('activation-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const licInput = document.getElementById('lic-input');
-        const licMsg = document.getElementById('lic-msg');
-        const key = licInput.value.trim();
-        if (!key) {
-            licMsg.textContent = "Veuillez entrer la clé.";
-            return;
-        }
-        try {
-            await auth.activateKey(key);
-            window.location.reload(); // Reload to reflect activated state
-        } catch (error) {
-            licMsg.textContent = error.message;
-        }
-    });
+    document.getElementById('activation-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const licInput = document.getElementById('lic-input');
+    const licMsg = document.getElementById('lic-msg');
+    const key = licInput.value.trim();
 
+    if (!key) {
+        licMsg.textContent = "Veuillez entrer la clé.";
+        return;
+    }
+    // التأكد من وجود بيانات التسجيل المؤقتة
+    if (!state.tempRegData) {
+        licMsg.textContent = "خطأ: بيانات التسجيل غير موجودة. يرجى البدء من جديد.";
+        return;
+    }
+
+    licMsg.textContent = "جاري التفعيل...";
+    licMsg.style.color = "blue";
+
+    // إرسال كل شيء إلى الـ Worker للتفعيل النهائي
+    auth.sendToWorker({
+        email: state.tempRegData.email,
+        password: state.tempRegData.password,
+        activationKey: key
+    })
+    .then(() => {
+        // نجاح التفعيل، الآن نسجل دخول المستخدم
+        return auth.handleLogin(state.tempRegData.email, state.tempRegData.password);
+    })
+
+    .then(() => {
+         // نجح تسجيل الدخول، onAuthChange سيتكفل بالباقي
+         state.tempRegData = null; // تنظيف البيانات المؤقتة
+         licMsg.textContent = "تم التفعيل بنجاح! جاري الدخول...";
+         licMsg.style.color = "green";
+    })
+    .catch(err => {
+        licMsg.textContent = err.message;
+        licMsg.style.color = "red";
+    });
+});
     // --- Modal Buttons ---
     document.getElementById('modal-overlay')?.addEventListener('click', ui.closeModal);
     document.getElementById('modal-close-btn')?.addEventListener('click', ui.closeModal);
