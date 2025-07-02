@@ -1,7 +1,7 @@
 // service-worker.js
 
 // قم بتغيير هذا الرقم مع كل تحديث للملفات لضمان تحديث الكاش لدى المستخدمين
-const CACHE_NAME = 'calgym2-cache-v1'; 
+const CACHE_NAME = 'calgym2-cache-v2'; 
 
 const urlsToCache = [
   // الملفات الأساسية للتطبيق
