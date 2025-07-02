@@ -70,12 +70,8 @@ function setupEventListeners() {
     e.preventDefault();
     const email = document.getElementById('register-email').value;
     const password = document.getElementById('register-password').value;
-    const registerMsg = document.getElementById('register-msg');
 
-    registerMsg.textContent = "جاري المعالجة...";
-    registerMsg.style.color = "blue";
-
-    // الخطوة 1: تسجيل الإيميل كـ Lead
+    // الخطوة 1: تسجيل الإيميل كـ "Lead" عبر الـ Worker
     auth.sendToWorker({ email: email })
         .then(() => {
             // الخطوة 2: تخزين بيانات التسجيل مؤقتاً
@@ -84,8 +80,7 @@ function setupEventListeners() {
             ui.showScreen('activation');
         })
         .catch(err => {
-            registerMsg.textContent = "حدث خطأ. حاول مرة أخرى.";
-            registerMsg.style.color = "red";
+            document.getElementById('register-msg').textContent = "حدث خطأ. حاول مرة أخرى.";
         });
 });
 
@@ -109,14 +104,9 @@ function setupEventListeners() {
     // --- Activation Form ---
     document.getElementById('activation-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const licInput = document.getElementById('lic-input');
+    const key = document.getElementById('lic-input').value.trim();
     const licMsg = document.getElementById('lic-msg');
-    const key = licInput.value.trim();
 
-    if (!key) {
-        licMsg.textContent = "Veuillez entrer la clé.";
-        return;
-    }
     // التأكد من وجود بيانات التسجيل المؤقتة
     if (!state.tempRegData) {
         licMsg.textContent = "خطأ: بيانات التسجيل غير موجودة. يرجى البدء من جديد.";
@@ -124,11 +114,8 @@ function setupEventListeners() {
     }
 
     licMsg.textContent = "جاري التفعيل...";
-    licMsg.style.color = "blue";
 
-    console.log('Data being sent for activation:', state.tempRegData);
-      
-    // إرسال كل شيء إلى الـ Worker للتفعيل النهائي
+    // إرسال كل شيء إلى الـ Worker للتفعيل النهائي وإنشاء الحساب
     auth.sendToWorker({
         email: state.tempRegData.email,
         password: state.tempRegData.password,
@@ -138,16 +125,12 @@ function setupEventListeners() {
         // نجاح التفعيل، الآن نسجل دخول المستخدم
         return auth.handleLogin(state.tempRegData.email, state.tempRegData.password);
     })
-
     .then(() => {
-         // نجح تسجيل الدخول، onAuthChange سيتكفل بالباقي
          state.tempRegData = null; // تنظيف البيانات المؤقتة
-         licMsg.textContent = "تم التفعيل بنجاح! جاري الدخول...";
-         licMsg.style.color = "green";
+         // onAuthChange سيتكفل بالباقي بعد نجاح تسجيل الدخول
     })
     .catch(err => {
         licMsg.textContent = err.message;
-        licMsg.style.color = "red";
     });
 });
     // --- Modal Buttons ---
