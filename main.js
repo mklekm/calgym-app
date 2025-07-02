@@ -126,6 +126,8 @@ function setupEventListeners() {
     licMsg.textContent = "جاري التفعيل...";
     licMsg.style.color = "blue";
 
+    console.log('Data being sent for activation:', state.tempRegData);
+      
     // إرسال كل شيء إلى الـ Worker للتفعيل النهائي
     auth.sendToWorker({
         email: state.tempRegData.email,
