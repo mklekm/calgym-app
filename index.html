@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="theme-color" content="#3b82f6"/>
+	<link rel="icon" href="./icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
+    <title>Calculatrice de Gymnastique</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/jspdf-autotable@latest/dist/jspdf.plugin.autotable.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    
+</head>
+<body class="bg-gray-100">
+
+  <div id="app-root">
+
+    <div id="auth-screen" class="screen">
+        <div class="auth-box">
+            <h1 class="logo">CalGym</h1>
+            <div id="login-view">
+                <form id="login-form">
+                    <h3>Connexion</h3>
+                    <input type="email" id="login-email" placeholder="E-mail" required />
+                    <input type="password" id="login-password" placeholder="Mot de passe" required />
+                    <button type="submit">Se connecter</button>
+                    <p id="login-msg" class="form-msg"></p>
+                </form>
+                <p class="auth-toggle-link"><a href="#" id="forgot-password-link">Mot de passe oublié ?</a></p>
+                <p class="auth-toggle-link">Pas de compte ? <a href="#" id="show-register-link">Créer un compte</a></p>
+            </div>
+            <div id="register-view" style="display: none;">
+                <form id="register-form">
+                    <h3>Créer un nouveau compte</h3>
+                    <input type="email" id="register-email" placeholder="E-mail" required />
+                    <input type="password" id="register-password" placeholder="Mot de passe" required />
+                    <button type="submit">S'inscrire</button>
+                    <p id="register-msg" class="form-msg"></p>
+                </form>
+                <p class="auth-toggle-link">Déjà un compte ? <a href="#" id="show-login-link-from-register">Se connecter</a></p>
+            </div>
+             <div id="reset-password-view" style="display: none;">
+                <form id="reset-password-form">
+                  <h3>Réinitialiser le mot de passe</h3>
+                  <p class="reset-info">Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
+                  <input type="email" id="reset-email" placeholder="E-mail" required />
+                  <button type="submit">Envoyer</button>
+                  <p id="reset-msg" class="form-msg"></p>
+                </form>
+                <p class="auth-toggle-link"><a href="#" id="back-to-login-link">Retour à la connexion</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="activation-screen" class="screen">
+       <div class="auth-box">
+            <h1 class="text-2xl font-bold mb-2">Activation du Compte</h1>
+            <p class="mb-6 text-gray-600">Veuillez activer votre compte مع une clé pour continuer.</p>
+            <form id="activation-form" class="mb-8">
+                <input id="lic-input" placeholder="أدخل مفتاح التفعيل هنا" class="text-center"/>
+                <button id="lic-btn" type="submit">تفعيل</button>
+                <p id="lic-msg" class="form-msg"></p>
+            </form>
+
+            <div class="border-t pt-6 text-center">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">ليس لديك مفتاح تفعيل؟</h2>
+                <p class="text-gray-700 font-semibold mb-4" style="direction: rtl;">
+                    احصل على مفتاحك الآن وانتقل بتجربتك في إدارة تقييمات الجمباز إلى مستوى احترافي!
+                </p>
+                <div class="text-right text-sm text-gray-600 space-y-3 mb-6" style="direction: rtl;">
+                    <p><i class="fas fa-check-circle text-green-500 ml-2"></i><strong>إدارة شاملة وغير محدودة:</strong> أضف أي عدد من الاقسام والطلاب، وقم بإجراء تقييمات مفصلة دون أي قيود أو حدود.</p>
+                    <p><i class="fas fa-check-circle text-green-500 ml-2"></i><strong>أمان بياناتك ومزامنتها:</strong> احفظ جميع بياناتك بشكل آمن في حسابك على Google Drive. يمكنك استعادتها بسهولة على أي جهاز جديد لضمان عدم ضياع عملك.</p>
+                    <p><i class="fas fa-check-circle text-green-500 ml-2"></i><strong>تقارير احترافية ودعم فني:</strong> قم بإنشاء وطباعة تقارير احترافية لطلابك، واحصل على الدعم الفني عند الحاجة لحل أي مشكلة تواجهك.</p>
+                </div>
+                <a href="https://wa.me/212710690915" target="_blank" class="w-full mt-2 inline-block bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-colors shadow-lg">
+                    <i class="fab fa-whatsapp mr-2"></i> تواصل معي للحصول على مفتاحك!
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="class-dashboard-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <div class="header-container">
+                <h1 class="main-title">Classes</h1>
+                <div class="actions-grid">
+                    <button id="stats-btn" class="action-button bg-indigo-600 hover:bg-indigo-700"><i class="fas fa-chart-pie mr-2"></i>Statistiques</button>
+                    <button id="import-students-btn" class="action-button bg-orange-500 hover:bg-orange-600"><i class="fas fa-file-import mr-2"></i>Importer</button>
+                    <button id="add-class-btn" class="action-button bg-purple-600 hover:bg-purple-700"><i class="fas fa-school mr-2"></i>Ajouter Classe</button>
+                    <button id="add-student-main-btn" class="action-button bg-blue-600 hover:bg-blue-700"><i class="fas fa-plus mr-2"></i>Ajouter Élève</button>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <input type="search" id="class-search-input" placeholder="Rechercher une classe ou un élève..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div id="class-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+            <div class="footer-container">
+                <button id="settings-btn" class="settings-button" title="Paramètres"><i class="fas fa-cog"></i></button>
+                <button id="logout-btn" class="logout-button">Déconnexion</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="class-details-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <button id="back-to-class-dashboard-btn" class="back-button">&larr; Retour aux classes</button>
+            <div class="header-container">
+                 <h1 class="main-title">Élèves de la classe : <span id="class-details-title" class="text-blue-600"></span></h1>
+                <div class="actions-grid">
+                    <button id="quick-entry-btn" class="action-button bg-yellow-500 hover:bg-yellow-600"><i class="fas fa-bolt mr-2"></i>Saisie Rapide</button>
+                    <button id="export-btn" class="action-button bg-teal-600 hover:bg-teal-700"><i class="fas fa-file-export mr-2"></i>Afficher le Bilan</button>
+                    <button id="add-student-to-class-btn" class="action-button bg-green-600 hover:bg-green-700"><i class="fas fa-user-plus mr-2"></i>Ajouter un élève</button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <input type="search" id="student-search-input" placeholder="Rechercher un élève..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div id="class-student-list" class="space-y-3">
+                </div>
+        </div>
+    </div>
+
+    <div id="quick-entry-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <button id="back-to-details-from-quick-entry-btn" class="back-button">&larr; Retour à la liste des élèves</button>
+            <h1 class="main-title">Saisie Rapide pour la classe : <span id="quick-entry-class-name" class="text-blue-600"></span></h1>
+            <p class="text-gray-600 mb-6">Modifiez les notes pour tous les élèves et enregistrez tout en une seule fois.</p>
+            <div class="overflow-x-auto bg-white rounded-lg shadow">
+                <table class="w-full text-sm text-center">
+                    <thead class="bg-gray-200 font-bold">
+                        <tr>
+                            <th class="p-2 border">Nom de l'élève</th>
+                            <th class="p-2 border" title="Éléments A">A</th>
+                            <th class="p-2 border" title="Éléments B">B</th>
+                            <th class="p-2 border" title="Éléments C">C</th>
+                            <th class="p-2 border" title="Exigences Spécifiques">Exig. Spéc.</th>
+                            <th class="p-2 border" title="Qualité d'enchaînement">Qualité</th>
+                            <th class="p-2 border" title="Exécution">Exécution</th>
+                            <th class="p-2 border" title="Connaissances">CO CN</th>
+                            <th class="p-2 border" title="Savoir-être">CO CM</th>
+                            <th class="p-2 border">Note Finale</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quick-entry-table-body"></tbody>
+                </table>
+            </div>
+            <div class="mt-8 flex justify-end">
+                <button id="save-quick-entry-btn" class="action-button bg-green-600 hover:bg-green-700 w-full md:w-auto"><i class="fas fa-save mr-2"></i>Enregistrer Toutes les Modifications</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="report-preview-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <button id="back-to-details-from-report-btn" class="back-button no-print">&larr; Retour à la liste des élèves</button>
+            <div class="report-header">
+                <div class="flex justify-between items-center">
+                    <span id="report-header-prof" class="font-bold"></span>
+                    <span id="report-header-class" class="font-bold text-lg"></span>
+                </div>
+                <h1 id="report-main-title" class="text-2xl font-extrabold my-2"></h1>
+            </div>
+            <div class="overflow-x-auto bg-white rounded-lg shadow">
+                <table class="report-table">
+                    <thead class="bg-gray-200 font-bold">
+                        <tr>
+                            <th rowspan="2" class="border border-black p-2">Nom</th>
+                            <th rowspan="2" class="border border-black p-2">Eléments gymnique</th>
+                            <th rowspan="2" class="border border-black p-2">Diff 6pts</th>
+                            <th rowspan="2" class="border border-black p-2">Exécution 2pts</th>
+                            <th colspan="2" class="border border-black p-2">COMPOSITION 5pts</th>
+                            <th rowspan="2" class="border border-black p-2">CO CN 3pts</th>
+                            <th rowspan="2" id="report-header-cocm" class="border border-black p-2">CO CM 4pts</th>
+                            <th rowspan="2" class="border border-black p-2">NOTE /20</th>
+                        </tr>
+                        <tr>
+                            <th class="border border-black p-2">Exigence spécifique</th>
+                            <th class="border border-black p-2">Qualité d'enchaînement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-table-body"></tbody>
+                </table>
+            </div>
+            <div class="mt-8 flex justify-end gap-4 border-t pt-6 no-print">
+                 <button onclick="window.print()" class="action-button bg-gray-500 hover:bg-gray-600"><i class="fas fa-print mr-2"></i>Imprimer</button>
+                <button id="report-export-csv-btn" class="action-button bg-teal-600 hover:bg-teal-700"><i class="fas fa-file-csv mr-2"></i>Exporter CSV</button>
+                <button id="report-export-pdf-btn" class="action-button bg-red-700 hover:bg-red-800"><i class="fas fa-file-pdf mr-2"></i>Exporter PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <button id="back-to-dashboard-from-stats-btn" class="back-button">&larr; Retour au tableau de bord</button>
+            <h1 class="main-title text-center mb-10">Tableau de Bord Général</h1>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stats-card bg-blue-600"><h3 class="stats-title">Total Classes</h3><p id="stats-total-classes" class="stats-value">0</p></div>
+                <div class="stats-card bg-green-600"><h3 class="stats-title">Total Élèves</h3><p id="stats-total-students" class="stats-value">0</p></div>
+                <div class="stats-card bg-purple-600"><h3 class="stats-title">Total Évaluations</h3><p id="stats-total-evaluations" class="stats-value">0</p></div>
+                <div class="stats-card bg-yellow-500"><h3 class="stats-title">Moyenne Générale</h3><p id="stats-overall-average" class="stats-value">0.00</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Distribution des Notes (Tous les élèves)</h2>
+                        <div class="chart-container" style="height: 300px;"><canvas id="overall-score-distribution-chart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Analyse Globale des Composantes</h2>
+                        <div class="chart-container" style="height: 300px;"><canvas id="overall-component-mastery-chart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1 space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Répartition des Élèves par Classe</h2>
+                        <div class="chart-container" style="height: 300px;"><canvas id="students-by-class-chart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4">Classement des Classes par Moyenne</h2>
+                        <div class="overflow-y-auto" style="max-height: 300px;">
+                            <table class="w-full text-left">
+                                <thead class="sticky top-0 bg-gray-50">
+                                    <tr>
+                                        <th class="p-2 font-semibold text-gray-600">Classe</th>
+                                        <th class="p-2 font-semibold text-gray-600 text-right">Moyenne</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="all-classes-ranking-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="class-stats-screen" class="screen" style="display: none;">
+        <div class="main-container">
+            <button id="back-to-dashboard-from-class-stats-btn" class="back-button">&larr; Retour au tableau de bord</button>
+            <h1 class="main-title text-center">Analyse Approfondie de la Classe : <span id="class-stats-title" class="text-blue-600"></span></h1>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-10 text-center">
+                <div class="stats-card bg-blue-500">
+                    <div class="relative">
+                        <h3 class="stats-title"> Moyenne <span class="tooltip-trigger"> <i class="fas fa-info-circle text-xs text-white/70 ml-1"></i> <span class="tooltip-text"> <strong>المتوسط (المعدل):</strong> هو مجموع كل النقاط مقسومًا على عدد الطلاب. يعطيك فكرة عن الأداء العام للقسم. </span> </span> </h3>
+                    </div>
+                    <p id="class-stats-average" class="stats-value">0.00</p>
+                </div>
+                <div class="stats-card bg-sky-500">
+                    <div class="relative">
+                        <h3 class="stats-title"> Médiane <span class="tooltip-trigger"> <i class="fas fa-info-circle text-xs text-white/70 ml-1"></i> <span class="tooltip-text"> <strong>الوسيط:</strong> هي النقطة التي يقع نصف الطلاب فوقها والنصف الآخر تحتها. هذا المؤشر مفيد لأنه لا يتأثر بالنقاط الشاذة (العالية جدًا أو المنخفضة جدًا). </span> </span> </h3>
+                    </div>
+                    <p id="class-stats-median" class="stats-value">0.00</p>
+                </div>
+                <div class="stats-card bg-green-500">
+                    <div class="relative">
+                        <h3 class="stats-title"> Note Max <span class="tooltip-trigger"> <i class="fas fa-info-circle text-xs text-white/70 ml-1"></i> <span class="tooltip-text"> <strong>أعلى نقطة:</strong> هي أعلى درجة حصل عليها طالب في هذا القسم بناءً على آخر تقييم. </span> </span> </h3>
+                    </div>
+                    <p id="class-stats-highest" class="stats-value">0.00</p>
+                </div>
+                <div class="stats-card bg-red-500">
+                    <div class="relative">
+                        <h3 class="stats-title"> Note Min <span class="tooltip-trigger"> <i class="fas fa-info-circle text-xs text-white/70 ml-1"></i> <span class="tooltip-text"> <strong>أدنى نقطة:</strong> هي أدنى درجة حصل عليها طالب في هذا القسم بناءً على آخر تقييم. </span> </span> </h3>
+                    </div>
+                    <p id="class-stats-lowest" class="stats-value">0.00</p>
+                </div>
+                <div class="stats-card bg-purple-500">
+                    <div class="relative">
+                        <h3 class="stats-title"> Écart-type <span class="tooltip-trigger"> <i class="fas fa-info-circle text-xs text-white/70 ml-1"></i> <span class="tooltip-text"> <strong>الانحراف المعياري:</strong> يوضح مدى تشتت النقاط عن المعدل. قيمة صغيرة تعني أن مستوى الطلاب متقارب، وقيمة كبيرة تعني أن هناك تفاوتًا كبيرًا في المستوى. </span> </span> </h3>
+                    </div>
+                    <p id="class-stats-stddev" class="stats-value">0.00</p>
+                </div>
+            </div>
+    
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2 space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4 text-center">Distribution des Notes</h2>
+                        <div class="chart-container" style="height:300px;">
+                            <canvas id="score-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg mt-8">
+                        <h2 class="text-xl font-bold mb-4 text-center">Analyse Détaillée des Composantes</h2>
+                        <div class="chart-container mt-4" style="height:450px;">
+                            <canvas id="component-analysis-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-bold mb-4 text-center">Classement des Élèves</h2>
+                    <div class="overflow-y-auto" style="max-height: 720px;">
+                        <table class="w-full text-left">
+                            <thead class="sticky top-0 bg-gray-100">
+                                <tr>
+                                    <th class="p-2">#</th>
+                                    <th class="p-2">Élève</th>
+                                    <th class="p-2 text-right">Note Finale</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-ranking-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="settings-screen" class="screen" style="display: none;">
+        <div class="w-full max-w-2xl mx-auto p-4 sm:p-6 my-8">
+            <button id="back-to-dashboard-from-settings-btn" class="back-button">&larr; Retour au tableau de bord</button>
+            <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-6">Paramètres</h1>
+                
+                <div class="space-y-6 border-b pb-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-600">Personnalisation du Bilan</h2>
+                    <div><label for="settings-teacher-name" class="block text-lg font-semibold text-gray-700 mb-2">Nom de l'enseignant</label><input type="text" id="settings-teacher-name" placeholder="Ex: Pr. Djalil Youness" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label for="settings-report-title" class="block text-lg font-semibold text-gray-700 mb-2">Titre du bilan</label><input type="text" id="settings-report-title" placeholder="Ex: Test Bilan Gymnastique au sol" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                    <button id="save-settings-btn" class="action-button bg-blue-600 hover:bg-blue-700 w-full"><i class="fas fa-save mr-2"></i>Enregistrer les informations</button>
+                </div>
+
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-gray-600">Sauvegarde Google Drive</h2>
+                    <p class="text-sm text-gray-500">Sauvegardez vos données sur votre Google Drive personnel pour y accéder depuis n'importe quel appareil et ne jamais les perdre.</p>
+                    <div id="drive-auth-view">
+                        <button id="authorize-drive-btn" class="action-button bg-gray-700 hover:bg-black w-full"><i class="fab fa-google-drive mr-2"></i>Lier mon compte Google Drive</button>
+                    </div>
+                    <div id="drive-sync-view" style="display: none;">
+                        <p class="text-sm text-green-600 font-bold mb-4" id="drive-status">Connecté à Google Drive.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button id="backup-to-drive-btn" class="action-button bg-green-600 hover:bg-green-700"><i class="fas fa-cloud-upload-alt mr-2"></i>Sauvegarder maintenant</button>
+                            <button id="restore-from-drive-btn" class="action-button bg-orange-500 hover:bg-orange-600"><i class="fas fa-cloud-download-alt mr-2"></i>Restaurer une sauvegarde</button>
+                        </div>
+                        <button id="logout-drive-btn" class="text-red-500 hover:underline text-sm mt-4">Déconnecter Google Drive</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    
+    <div id="evaluation-screen" class="screen" style="display: none;">
+       <div class="main-container bg-gray-50 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8">
+            <button id="back-to-dashboard-btn" class="back-button">&larr; Retour</button>
+            <div class="text-center mb-8"><h1 class="main-title">Évaluation de : <span id="evaluation-student-name" class="text-blue-600"></span></h1><p class="text-gray-500 mt-2 text-lg">Entrez les notes pour obtenir le résultat final</p></div>
+            <div class="mb-6 component-card bg-blue-50"><label for="year" class="block text-lg font-semibold text-gray-700 mb-2">Choisissez le niveau scolaire</label><select id="year" class="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"><option value="1AC">1ère Année Collège</option><option value="2AC" selected>2ème Année Collège</option><option value="3AC">3ème Année Collège</option></select></div>
+            <div class="component-card"><h2 class="component-title">Performance Technique</h2><h3 class="sub-title">1. Difficulté (6 points)</h3><div id="difficulty-requirements" class="text-sm font-semibold text-center text-blue-800 bg-blue-100 p-2 rounded-md mb-4 border border-blue-200"></div>
+                <div class="grid grid-cols-3 gap-4 mb-6 text-center">
+                    <div><label class="block font-semibold text-gray-700 mb-2">Éléments A</label><div class="flex items-center justify-center space-x-3"><button type="button" class="counter-btn decrement-btn" data-target="performed_a">-</button><span id="performed_a_display" class="text-2xl font-bold w-10">0</span><input type="hidden" id="performed_a" value="0"><button type="button" class="counter-btn increment-btn" data-target="performed_a">+</button></div></div>
+                    <div><label class="block font-semibold text-gray-700 mb-2">Éléments B</label><div class="flex items-center justify-center space-x-3"><button type="button" class="counter-btn decrement-btn" data-target="performed_b">-</button><span id="performed_b_display" class="text-2xl font-bold w-10">0</span><input type="hidden" id="performed_b" value="0"><button type="button" class="counter-btn increment-btn" data-target="performed_b">+</button></div></div>
+                    <div><label class="block font-semibold text-gray-700 mb-2">Éléments C</label><div class="flex items-center justify-center space-x-3"><button type="button" class="counter-btn decrement-btn" data-target="performed_c">-</button><span id="performed_c_display" class="text-2xl font-bold w-10">0</span><input type="hidden" id="performed_c" value="0"><button type="button" class="counter-btn increment-btn" data-target="performed_c">+</button></div></div>
+                </div>
+                <h3 class="sub-title">2. Composition</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div><label for="specific_req" class="block font-semibold text-gray-700 mb-2">Exigences spécifiques (1.5 pts)</label><select id="specific_req" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="1.5">3 familles (1.5 pts)</option><option value="1.0">2 familles (1.0 pts)</option><option value="0.5">1 famille (0.5 pts)</option><option value="0">0 familles (0 pts)</option></select></div>
+                    <div><label for="linking_quality" class="block font-semibold text-gray-700 mb-2">Qualité d'enchaînement</label><select id="linking_quality" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="excellent">Excellente</option><option value="good" selected>Bonne</option><option value="average">Moyenne</option><option value="weak">Faible</option></select></div>
+                </div>
+                <h3 class="sub-title">3. Exécution (2 points)</h3><select id="execution" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="2.0">Parfaite (2.0 pts)</option><option value="1.5" selected>Bonne (1.5 pts)</option><option value="1.0">Moyenne (1.0 pts)</option><option value="0.5">Faible (0.5 pts)</option><option value="0">Très faible / Chutes (0 pts)</option></select>
+            </div>
+            <div class="component-card"><h2 class="component-title">Savoirs et Savoir-être</h2><div class="mb-6"><label for="co_cn" class="sub-title block mb-2">CO CN: Connaissances (3 points)</label><input type="number" id="co_cn" min="0" max="3" step="0.25" value="0" class="w-full p-3 text-center bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div><div><label id="co_cm_label" for="co_cm" class="sub-title block mb-2">CO CM: Savoir-être et Motricité</label><input type="number" id="co_cm" min="0" step="0.25" value="0" class="w-full p-3 text-center bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div></div>
+            <button id="calculate-btn" class="w-full bg-blue-600 text-white font-bold text-lg py-3.5 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all shadow-lg hover:shadow-xl mt-4">Calculer la note finale</button>
+            <div id="result-container" class="mt-8 p-6 bg-gray-100 rounded-xl border-2 border-gray-200 hidden"><h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Résultat Détaillé</h2><div class="text-center mb-6"><p class="text-gray-600 text-lg">Note Finale</p><span id="final-score" class="text-6xl font-bold text-blue-600">0.00</span><span class="text-3xl text-gray-500">/ 20</span></div><div id="explanation" class="space-y-2 text-gray-800 border-t-2 border-gray-300 pt-4"></div></div>
+            <button id="save-evaluation-btn" class="w-full bg-green-600 text-white font-bold text-lg py-3.5 rounded-lg hover:bg-green-700 mt-4 shadow-lg">Enregistrer cette évaluation</button>
+            <div class="mt-8 component-card"><h3 class="component-title">Évaluations précédentes</h3><div id="evaluation-history" class="space-y-2"></div></div>
+        </div>
+    </div>
+    
+    <input type="file" id="csv-import-input" accept=".csv" style="display: none;">
+
+    <div id="app-modal" class="modal-hidden">
+        <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+        <div class="modal-box fixed bg-white p-6 rounded-lg shadow-xl z-50">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 id="modal-title" class="text-xl font-bold"></h3>
+                <button id="modal-close-btn" class="text-2xl hover:text-red-500">&times;</button>
+            </div>
+            <div id="modal-body" class="mb-6"></div>
+            <div id="modal-footer" class="flex justify-end gap-4">
+                <button id="modal-cancel-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">Annuler</button>
+                <button id="modal-save-btn" class="action-button bg-blue-600 hover:bg-blue-700">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+  </div>
+
+    <button id="install-app-btn" class="install-button" style="display: none;" title="Installer l'application">
+        <i class="fas fa-download"></i>
+    </button>
+
+    <script src="main.js" type="module"></script>
+
+    <footer class="app-footer">
+        <p>&copy; 2025 CalGym. Developed with <i class="fas fa-heart text-red-500"></i> by Rachid AIT  BAKKA . All rights reserved.</p>
+    </footer>
+</body>
+</html>
