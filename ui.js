@@ -63,6 +63,11 @@ export function showScreen(screenName) {
     updateInstallButtonVisibility(screenName);
 }
 
+// THIS IS THE NEW HELPER FUNCTION
+export function getCurrentScreenName() {
+    return Object.keys(screens).find(key => screens[key] && screens[key].style.display !== 'none' && screens[key].style.display !== '');
+}
+
 // --- Rendering Functions ---
 
 export function renderClassDashboard() {
@@ -88,7 +93,6 @@ export function renderClassDashboard() {
         }
     }
 }
-
 export function renderClassDetailsScreen(className) {
     state.currentClassName = className;
     document.getElementById('class-details-title').textContent = className;
