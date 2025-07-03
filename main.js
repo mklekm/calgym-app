@@ -1,11 +1,3 @@
-// main.js
-// This is the main entry point of the application.
-// It imports all modules, initializes the app, and sets up all event listeners.
-
-
-// main.js
-
-// Add this code at the top of the file to register the Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
@@ -18,18 +10,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ... rest of your main.js code
 import { state } from './state.js';
 import * as auth from './auth.js';
 import * as storage from './storage.js';
 import * as ui from './ui.js';
 import * as calculator from './calculator.js';
 
-/**
- * Main authentication state change handler.
- * This function is called whenever the user logs in or out.
- * @param {object} user - The Firebase user object, or null if logged out.
- */
 async function onAuthChange(user) {
     if (user) {
         state.currentUID = user.uid;
@@ -43,14 +29,13 @@ async function onAuthChange(user) {
             }
         } catch (e) {
             console.error("Error checking user status:", e);
-            ui.showScreen('auth'); // Fallback to auth screen on error
+            ui.showScreen('auth');
         }
     } else {
         state.currentUID = null;
         ui.showScreen('auth');
     }
 }
-
 /**
  * Sets up all the event listeners for the entire application.
  * This is crucial for making the UI interactive.
@@ -417,13 +402,15 @@ function setupEventListeners() {
     document.getElementById('backup-to-drive-btn')?.addEventListener('click', ui.backupToDrive);
     document.getElementById('restore-from-drive-btn')?.addEventListener('click', ui.restoreFromDrive);
     
-    // --- PWA Installation ---
+   // --- PWA Installation ---
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         state.deferredPrompt = e;
-        const currentScreen = Object.keys(screens).find(key => screens[key].style.display !== 'none' && screens[key].style.display !== '');
+        // THIS IS THE CORRECTED LINE
+        const currentScreen = ui.getCurrentScreenName();
         ui.updateInstallButtonVisibility(currentScreen);
     });
+
     document.getElementById('install-app-btn')?.addEventListener('click', async () => {
         if (state.deferredPrompt) {
             state.deferredPrompt.prompt();
@@ -432,28 +419,18 @@ function setupEventListeners() {
             ui.updateInstallButtonVisibility(null);
         }
     });
+
     window.addEventListener('appinstalled', () => {
         state.deferredPrompt = null;
         ui.updateInstallButtonVisibility(null);
     });
 }
 
-/**
- * Initializes the entire application.
- */
 function init() {
-    // Set up the authentication state listener
     auth.initAuth(onAuthChange);
-
-    // Set up all UI event listeners
     setupEventListeners();
-    
-    // استدعاء دالة تحميل سكربتات جوجل الجديدة
-    ui.loadGoogleAPIs(); // <<< قم بتغيير هذا السطر
-    
+    ui.loadGoogleAPIs();
     console.log("Application Initialized");
 }
 
-// --- Start the application ---
-// We wrap the init() call in a DOMContentLoaded listener to ensure the DOM is ready.
 document.addEventListener('DOMContentLoaded', init);
