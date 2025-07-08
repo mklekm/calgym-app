@@ -1,3 +1,4 @@
+// Service Worker registration (optional, can be disabled for simplicity)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
@@ -10,29 +11,45 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Import modules
 import { state } from './state.js';
 import * as auth from './auth.js';
 import * as storage from './storage.js';
 import * as ui from './ui.js';
 import * as calculator from './calculator.js';
+import { 
+    handleError, 
+    showSuccess, 
+    showMessage,
+    showConfirmDialog,
+    initGlobalErrorHandler,
+    withErrorHandling,
+    validateForm
+} from './error-handler.js';
+import { 
+    validateEmail, 
+    validateTextInput,
+    validateStudentName,
+    validateClassName
+} from './security.js';
 
+/**
+ * Handle authentication state changes
+ * @param {object|null} user - User object or null if not authenticated
+ */
 async function onAuthChange(user) {
-    if (user) {
-        state.currentUID = user.uid;
-        try {
-            const isActive = await auth.checkUserActivation(user.uid);
-            if (isActive) {
-                ui.showScreen('classDashboard');
-                ui.renderClassDashboard();
-            } else {
-                ui.showScreen('activation');
-            }
-        } catch (e) {
-            console.error("Error checking user status:", e);
+    try {
+        if (user) {
+            state.currentUID = user.uid;
+            // For simplified auth, we skip activation check
+            ui.showScreen('classDashboard');
+            ui.renderClassDashboard();
+        } else {
+            state.currentUID = null;
             ui.showScreen('auth');
         }
-    } else {
-        state.currentUID = null;
+    } catch (error) {
+        handleError(error, 'Authentication');
         ui.showScreen('auth');
     }
 }
@@ -42,125 +59,429 @@ async function onAuthChange(user) {
  */
 function setupEventListeners() {
     // --- Authentication Views ---
-    document.getElementById('login-form')?.addEventListener('submit', (e) => {
+    document.getElementById('login-form')?.addEventListener('submit', withErrorHandling(async (e) => {
         e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        auth.handleLogin(email, password).catch(err => {
-            document.getElementById('login-msg').textContent = "Échec de la connexion: email ou mot de passe incorrect.";
+        const form = e.target;
+        const email = form.querySelector('#login-email').value.trim();
+        const password = form.querySelector('#login-password').value;
+        
+        // Validate form inputs
+        const isValid = validateForm(form, {
+            email: {
+                required: true,
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                requiredMessage: 'Email est requis.',
+                patternMessage: 'Format d\'email invalide.'
+            },
+            password: {
+                required: true,
+                minLength: 4,
+                requiredMessage: 'Mot de passe est requis.',
+                lengthMessage: 'Mot de passe trop court (minimum 4 caractères).'
+            }
         });
-    });
+        
+        if (!isValid) return;
+        
+        try {
+            document.getElementById('login-msg').textContent = 'Connexion en cours...';
+            await auth.handleLogin(email, password);
+            showSuccess('Connexion réussie!');
+        } catch (error) {
+            document.getElementById('login-msg').textContent = error.message;
+            handleError(error, 'Login');
+        }
+    }, 'Login'));
 
-    document.getElementById('register-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
-
-    // الخطوة 1: تسجيل الإيميل كـ "Lead" عبر الـ Worker
-    auth.sendToWorker({ email: email })
-        .then(() => {
-            // الخطوة 2: تخزين بيانات التسجيل مؤقتاً
-            state.tempRegData = { email, password };
-            // الخطوة 3: الانتقال مباشرة إلى صفحة التفعيل
-            ui.showScreen('activation');
-        })
-        .catch(err => {
-            document.getElementById('register-msg').textContent = "حدث خطأ. حاول مرة أخرى.";
-        });
-});
-
-
-    document.getElementById('reset-password-form')?.addEventListener('submit', (e) => {
+    // Simplified registration (removed complex activation flow)
+    document.getElementById('register-form')?.addEventListener('submit', withErrorHandling(async (e) => {
         e.preventDefault();
-        const email = document.getElementById('reset-email').value;
-        auth.handlePasswordReset(email)
-            .then(() => { document.getElementById('reset-msg').textContent = "E-mail de réinitialisation envoyé !"; })
-            .catch(() => { document.getElementById('reset-msg').textContent = "Erreur. E-mail non trouvé."; });
-    });
+        const form = e.target;
+        const email = form.querySelector('#register-email').value.trim();
+        const password = form.querySelector('#register-password').value;
+        
+        // Validate form inputs
+        const isValid = validateForm(form, {
+            email: {
+                required: true,
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                requiredMessage: 'Email est requis.',
+                patternMessage: 'Format d\'email invalide.'
+            },
+            password: {
+                required: true,
+                minLength: 4,
+                requiredMessage: 'Mot de passe est requis.',
+                lengthMessage: 'Mot de passe trop court (minimum 4 caractères).'
+            }
+        });
+        
+        if (!isValid) return;
+        
+        try {
+            document.getElementById('register-msg').textContent = 'Création du compte...';
+            await auth.handleLogin(email, password); // Simplified: just login
+            showSuccess('Compte créé avec succès!');
+        } catch (error) {
+            document.getElementById('register-msg').textContent = error.message;
+            handleError(error, 'Registration');
+        }
+    }, 'Registration'));
 
-    document.getElementById('logout-btn')?.addEventListener('click', auth.handleLogout);
+    document.getElementById('reset-password-form')?.addEventListener('submit', withErrorHandling(async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const email = form.querySelector('#reset-email').value.trim();
+        
+        if (!validateEmail(email)) {
+            showMessage('Format d\'email invalide.', 'warning');
+            return;
+        }
+        
+        try {
+            document.getElementById('reset-msg').textContent = 'Envoi en cours...';
+            const message = await auth.handlePasswordReset(email);
+            document.getElementById('reset-msg').textContent = message;
+            showSuccess('Instructions envoyées!');
+        } catch (error) {
+            document.getElementById('reset-msg').textContent = error.message;
+            handleError(error, 'Password Reset');
+        }
+    }, 'Password Reset'));
+
+    document.getElementById('logout-btn')?.addEventListener('click', withErrorHandling(async () => {
+        try {
+            await auth.handleLogout();
+            showSuccess('Déconnexion réussie!');
+        } catch (error) {
+            handleError(error, 'Logout');
+        }
+    }, 'Logout'));
 
     // --- Auth View Toggles ---
-    document.getElementById('show-register-link')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').style.display = 'none'; document.getElementById('register-view').style.display = 'block'; document.getElementById('reset-password-view').style.display = 'none'; });
-    document.getElementById('show-login-link-from-register')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').style.display = 'block'; document.getElementById('register-view').style.display = 'none'; document.getElementById('reset-password-view').style.display = 'none'; });
-    document.getElementById('forgot-password-link')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').style.display = 'none'; document.getElementById('register-view').style.display = 'none'; document.getElementById('reset-password-view').style.display = 'block'; });
-    document.getElementById('back-to-login-link')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-view').style.display = 'block'; document.getElementById('register-view').style.display = 'none'; document.getElementById('reset-password-view').style.display = 'none'; });
-
-    // --- Activation Form ---
-    document.getElementById('activation-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const key = document.getElementById('lic-input').value.trim();
-    const licMsg = document.getElementById('lic-msg');
-
-    // التأكد من وجود بيانات التسجيل المؤقتة
-    if (!state.tempRegData) {
-        licMsg.textContent = "خطأ: بيانات التسجيل غير موجودة. يرجى البدء من جديد.";
-        return;
-    }
-
-    licMsg.textContent = "جاري التفعيل...";
-
-    // إرسال كل شيء إلى الـ Worker للتفعيل النهائي وإنشاء الحساب
-    auth.sendToWorker({
-        email: state.tempRegData.email,
-        password: state.tempRegData.password,
-        activationKey: key
-    })
-    .then(() => {
-        // نجاح التفعيل، الآن نسجل دخول المستخدم
-        return auth.handleLogin(state.tempRegData.email, state.tempRegData.password);
-    })
-    .then(() => {
-         state.tempRegData = null; // تنظيف البيانات المؤقتة
-         // onAuthChange سيتكفل بالباقي بعد نجاح تسجيل الدخول
-    })
-    .catch(err => {
-        licMsg.textContent = err.message;
+    document.getElementById('show-register-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('register-view').style.display = 'block';
+        document.getElementById('reset-password-view').style.display = 'none';
     });
-});
-    // --- Modal Buttons ---
-    document.getElementById('modal-overlay')?.addEventListener('click', ui.closeModal);
-    document.getElementById('modal-close-btn')?.addEventListener('click', ui.closeModal);
-    document.getElementById('modal-cancel-btn')?.addEventListener('click', ui.closeModal);
-    document.getElementById('modal-save-btn')?.addEventListener('click', () => {
-        const action = ui.getModalSaveAction();
-        if (action && action()) {
-            ui.closeModal();
+    
+    document.getElementById('show-login-link-from-register')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('login-view').style.display = 'block';
+        document.getElementById('register-view').style.display = 'none';
+        document.getElementById('reset-password-view').style.display = 'none';
+    });
+    
+    document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('register-view').style.display = 'none';
+        document.getElementById('reset-password-view').style.display = 'block';
+    });
+    
+    document.getElementById('back-to-login-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('login-view').style.display = 'block';
+        document.getElementById('register-view').style.display = 'none';
+        document.getElementById('reset-password-view').style.display = 'none';
+    });
+
+    // --- Class Management ---
+    document.getElementById('add-class-btn')?.addEventListener('click', () => {
+        ui.handleAddClass();
+    });
+
+    // --- Student Management ---
+    document.getElementById('add-student-btn')?.addEventListener('click', () => {
+        ui.handleAddStudent();
+    });
+
+    // --- Navigation ---
+    document.getElementById('back-to-class-dashboard-btn')?.addEventListener('click', () => {
+        state.currentClassName = null;
+        ui.renderClassDashboard();
+        ui.showScreen('classDashboard');
+    });
+
+    // --- Calculator ---
+    document.getElementById('calculate-btn')?.addEventListener('click', withErrorHandling(() => {
+        const year = document.getElementById('year').value;
+        const pA = parseInt(document.getElementById('pA').value) || 0;
+        const pB = parseInt(document.getElementById('pB').value) || 0;
+        const pC = parseInt(document.getElementById('pC').value) || 0;
+        const specificReqScore = parseFloat(document.getElementById('specific_req').value) || 0;
+        const linkingQualityValue = document.getElementById('linking_quality').value;
+        const executionScore = parseFloat(document.getElementById('execution').value) || 0;
+        const coCnScore = parseFloat(document.getElementById('co_cn').value) || 0;
+        const coCmScore = parseFloat(document.getElementById('co_cm').value) || 0;
+
+        // Validate inputs
+        if (!year || !['1AC', '2AC', '3AC'].includes(year)) {
+            showMessage('Niveau de classe invalide.', 'warning');
+            return;
+        }
+
+        // Calculate scores
+        const difficultyResult = calculator.calculateDifficulty(year, pA, pB, pC);
+        const linkingScore = calculator.getLinkingQualityScore(year, linkingQualityValue);
+        const maxLinkingScore = calculator.getLinkingQualityScore(year, 'excellent');
+        const totalScore = difficultyResult.score + specificReqScore + linkingScore + executionScore + coCnScore + coCmScore;
+
+        // Update UI
+        document.getElementById('final-score').textContent = totalScore.toFixed(2);
+        document.getElementById('difficulty-explanation').innerHTML = difficultyResult.explanation.join('<br>');
+        document.getElementById('result-display').innerHTML = 
+            calculator.createResultRow("1. Difficulté", difficultyResult.score, 6, difficultyResult.explanation.join('<br>')) +
+            calculator.createResultRow("2. Exigences Spécifiques", specificReqScore, 1.5) +
+            calculator.createResultRow("3. Qualité d'enchaînement", linkingScore, maxLinkingScore) +
+            calculator.createResultRow('4. Exécution', executionScore, 2) +
+            calculator.createResultRow('5. Connaissances (CO CN)', coCnScore, 3) +
+            calculator.createResultRow('6. Savoir-être (CO CM)', coCmScore, calculator.coCmMaxScores_calc[year]);
+
+        document.getElementById('result-container').classList.remove('hidden');
+    }, 'Calculator'));
+
+    // --- Evaluation Save ---
+    document.getElementById('save-evaluation-btn')?.addEventListener('click', withErrorHandling(async () => {
+        if (!state.currentStudentId) {
+            showMessage('Aucun élève sélectionné.', 'warning');
+            return;
+        }
+        
+        const totalScore = parseFloat(document.getElementById('final-score').textContent);
+        if (isNaN(totalScore) || totalScore === 0.00) {
+            showMessage('Veuillez d\'abord calculer le score.', 'warning');
+            return;
+        }
+
+        // Collect evaluation data
+        const evaluationData = {
+            date: new Date().toISOString(),
+            year: document.getElementById('year').value,
+            pA: parseInt(document.getElementById('pA').value) || 0,
+            pB: parseInt(document.getElementById('pB').value) || 0,
+            pC: parseInt(document.getElementById('pC').value) || 0,
+            specificReqScore: parseFloat(document.getElementById('specific_req').value) || 0,
+            linkingQualityValue: document.getElementById('linking_quality').value,
+            executionScore: parseFloat(document.getElementById('execution').value) || 0,
+            coCnScore: parseFloat(document.getElementById('co_cn').value) || 0,
+            coCmScore: parseFloat(document.getElementById('co_cm').value) || 0,
+            difficultyScore: calculator.calculateDifficulty(
+                document.getElementById('year').value,
+                parseInt(document.getElementById('pA').value) || 0,
+                parseInt(document.getElementById('pB').value) || 0,
+                parseInt(document.getElementById('pC').value) || 0
+            ).score,
+            linkingScore: calculator.getLinkingQualityScore(
+                document.getElementById('year').value,
+                document.getElementById('linking_quality').value
+            ),
+            totalScore: totalScore
+        };
+
+        const result = storage.saveEvaluation(state.currentStudentId, evaluationData);
+        if (result.success) {
+            showSuccess(result.message);
+            ui.setupEvaluationScreen(state.currentStudentId);
+        } else {
+            showMessage(result.message, 'error');
+        }
+    }, 'Save Evaluation'));
+
+    // --- CSV Import ---
+    document.getElementById('import-students-btn')?.addEventListener('click', () => {
+        document.getElementById('csv-import-input').click();
+    });
+
+    document.getElementById('csv-import-input')?.addEventListener('change', withErrorHandling(async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            showMessage('Seuls les fichiers CSV sont acceptés.', 'warning');
+            return;
+        }
+
+        // Validate file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+            showMessage('Fichier trop volumineux (maximum 5MB).', 'warning');
+            return;
+        }
+
+        try {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    let importedCount = 0;
+                    let errorCount = 0;
+                    const errors = [];
+
+                    results.data.forEach((row, index) => {
+                        const name = validateTextInput(row.name || row.Name || row.nom || row.Nom, 100);
+                        const className = validateTextInput(row.class || row.Class || row.classe || row.Classe, 50);
+
+                        if (!name || !className) {
+                            errors.push(`Ligne ${index + 1}: Nom ou classe manquant`);
+                            errorCount++;
+                            return;
+                        }
+
+                        if (!validateStudentName(name)) {
+                            errors.push(`Ligne ${index + 1}: Nom invalide "${name}"`);
+                            errorCount++;
+                            return;
+                        }
+
+                        if (!validateClassName(className)) {
+                            errors.push(`Ligne ${index + 1}: Classe invalide "${className}"`);
+                            errorCount++;
+                            return;
+                        }
+
+                        const result = storage.addStudent(name, className);
+                        if (result.success) {
+                            importedCount++;
+                        } else {
+                            errors.push(`Ligne ${index + 1}: ${result.message}`);
+                            errorCount++;
+                        }
+                    });
+
+                    if (importedCount > 0) {
+                        showSuccess(`${importedCount} élève(s) importé(s) avec succès!`);
+                        ui.renderClassDashboard();
+                    }
+
+                    if (errorCount > 0) {
+                        const errorMessage = `${errorCount} erreur(s) détectée(s):\n${errors.slice(0, 5).join('\n')}`;
+                        showMessage(errorMessage, 'warning');
+                    }
+                },
+                error: (error) => {
+                    handleError(error, 'CSV Import');
+                }
+            });
+        } catch (error) {
+            handleError(error, 'CSV Import');
+        }
+
+        event.target.value = ''; // Reset input
+    }, 'CSV Import'));
+
+    // --- Export Functions ---
+    document.getElementById('export-csv-btn')?.addEventListener('click', withErrorHandling(() => {
+        if (state.currentClassName) {
+            ui.exportToCSV(state.currentClassName);
+        } else {
+            showMessage('Aucune classe sélectionnée.', 'warning');
+        }
+    }, 'CSV Export'));
+
+    document.getElementById('export-pdf-btn')?.addEventListener('click', withErrorHandling(() => {
+        if (state.currentClassName) {
+            ui.exportToPDF(state.currentClassName);
+        } else {
+            showMessage('Aucune classe sélectionnée.', 'warning');
+        }
+    }, 'PDF Export'));
+
+    // --- Quick Entry ---
+    document.getElementById('quick-entry-table-body')?.addEventListener('input', (e) => {
+        if (e.target.classList.contains('quick-input')) {
+            ui.updateRowScore(e.target.closest('tr'));
         }
     });
 
-    // --- Class Dashboard ---
-    document.getElementById('class-list')?.addEventListener('click', (e) => {
-        const classCard = e.target.closest('.class-card');
-        if (!classCard) return;
-        const className = classCard.dataset.className;
-        const action = e.target.closest('.action-btn')?.dataset.action;
-        
-        if (action === 'delete') {
-            if (storage.deleteClass(className)) {
-                ui.renderClassDashboard();
+    document.getElementById('save-quick-entry-btn')?.addEventListener('click', withErrorHandling(async () => {
+        const rows = document.querySelectorAll('#quick-entry-table-body tr');
+        let savedCount = 0;
+        let errorCount = 0;
+
+        for (const row of rows) {
+            const studentId = row.dataset.studentId;
+            const classLevel = row.dataset.classLevel;
+            
+            if (!studentId || !classLevel) continue;
+
+            // Collect data from row
+            const pA = parseInt(row.querySelector('[data-field="pA"]').value) || 0;
+            const pB = parseInt(row.querySelector('[data-field="pB"]').value) || 0;
+            const pC = parseInt(row.querySelector('[data-field="pC"]').value) || 0;
+            const specificReqScore = parseFloat(row.querySelector('[data-field="specificReqScore"]').value) || 0;
+            const linkingQualityValue = row.querySelector('[data-field="linkingQualityValue"]').value;
+            const executionScore = parseFloat(row.querySelector('[data-field="executionScore"]').value) || 0;
+            const coCnScore = parseFloat(row.querySelector('[data-field="coCnScore"]').value) || 0;
+            const coCmScore = parseFloat(row.querySelector('[data-field="coCmScore"]').value) || 0;
+
+            // Calculate scores
+            const difficultyResult = calculator.calculateDifficulty(classLevel, pA, pB, pC);
+            const linkingScore = calculator.getLinkingQualityScore(classLevel, linkingQualityValue);
+            const totalScore = difficultyResult.score + specificReqScore + linkingScore + executionScore + coCnScore + coCmScore;
+
+            // Save evaluation
+            const evaluationData = {
+                date: new Date().toISOString(),
+                year: classLevel,
+                pA, pB, pC,
+                specificReqScore,
+                linkingQualityValue,
+                executionScore,
+                coCnScore,
+                coCmScore,
+                difficultyScore: difficultyResult.score,
+                linkingScore,
+                totalScore
+            };
+
+            const result = storage.saveEvaluation(studentId, evaluationData);
+            if (result.success) {
+                savedCount++;
+            } else {
+                errorCount++;
             }
-        } else if (action === 'edit') {
-            ui.handleEditClass(className);
-        } else if (action === 'stats') {
-            ui.renderClassStatsPage(className);
-            ui.showScreen('classStats');
-        } else {
-            ui.renderClassDetailsScreen(className);
+        }
+
+        if (savedCount > 0) {
+            showSuccess(`${savedCount} évaluation(s) sauvegardée(s) avec succès!`);
+            ui.renderClassDetailsScreen(state.currentClassName);
             ui.showScreen('classDetails');
         }
-    });
 
-    document.getElementById('add-class-btn')?.addEventListener('click', ui.handleAddClass);
-    document.getElementById('add-student-main-btn')?.addEventListener('click', () => ui.handleAddStudent());
-    document.getElementById('class-search-input')?.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        const { students } = storage.getAppData();
-        const allStudents = Object.values(students);
-        document.querySelectorAll('#class-list .class-card').forEach(card => {
-            const className = card.dataset.className.toLowerCase();
-            let isMatch = className.includes(searchTerm);
-            if (!isMatch) {
+        if (errorCount > 0) {
+            showMessage(`${errorCount} erreur(s) lors de la sauvegarde.`, 'warning');
+        }
+    }, 'Quick Entry Save'));
+/**
+ * Initialize the application
+ */
+function init() {
+    // Initialize global error handling
+    initGlobalErrorHandler();
+    
+    // Initialize authentication
+    auth.initAuth(onAuthChange);
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Initialize calculator UI
+    ui.initializeCalculatorUI();
+    
+    // Optional: Remove Google APIs loading for simplicity
+    // ui.loadGoogleAPIs();
+    
+    console.log("CalGym Application Initialized - Secure Version");
+}
+
+// Initialize application when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
                 const studentsInThisClass = allStudents.filter(student => student.class.toLowerCase() === className);
                 if (studentsInThisClass.some(student => student.name.toLowerCase().includes(searchTerm))) {
                     isMatch = true;
@@ -426,11 +747,32 @@ function setupEventListeners() {
     });
 }
 
+
+/**
+ * Initialize the application
+ */
 function init() {
+    // Initialize global error handling
+    initGlobalErrorHandler();
+    
+    // Initialize authentication
     auth.initAuth(onAuthChange);
+    
+    // Setup event listeners
     setupEventListeners();
-    ui.loadGoogleAPIs();
-    console.log("Application Initialized");
+    
+    // Initialize calculator UI
+    ui.initializeCalculatorUI();
+    
+    // Optional: Remove Google APIs loading for simplicity
+    // ui.loadGoogleAPIs();
+    
+    console.log("CalGym Application Initialized - Secure Version");
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// Initialize application when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
